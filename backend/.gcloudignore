@@ -1,0 +1,15 @@
+# Local-only Python environments and test artifacts must not be uploaded to Cloud Run.
+.venv/
+.venv-local/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+.env
+
+# Local source-control and editor files
+.git/
+.gitignore
+.gcloudignore
+.vscode/
+.idea/
