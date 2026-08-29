@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { auth } from '../firebase';
+import { auth, db } from '../firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { collection, getDocs } from 'firebase/firestore';
 import Navbar from '../components/Navbar';
+import { apiUrl } from '../api';
 
 const describeAuthError = (error) => {
   const messages = {
@@ -22,8 +24,34 @@ export default function Login() {
   const [role, setRole] = useState('fisherman');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [zones, setZones] = useState([]);
+  const [zoneId, setZoneId] = useState('');
+  const [zonesError, setZonesError] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isSignUp) return undefined;
+    let active = true;
+
+    const loadZones = async () => {
+      try {
+        const snapshot = await getDocs(collection(db, 'zones'));
+        const nextZones = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        if (!nextZones.length) throw new Error('No coastal zones are configured yet.');
+        if (active) {
+          setZones(nextZones);
+          setZoneId((currentZone) => currentZone || nextZones[0].id);
+          setZonesError('');
+        }
+      } catch (loadError) {
+        if (active) setZonesError(loadError.message);
+      }
+    };
+
+    loadZones();
+    return () => { active = false; };
+  }, [isSignUp]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -40,7 +68,7 @@ export default function Login() {
       if (isSignUp) {
         userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const token = await userCredential.user.getIdToken();
-        const registerResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/users/register`, {
+        const registerResponse = await fetch(apiUrl('/api/users/register'), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -48,7 +76,7 @@ export default function Login() {
           },
           body: JSON.stringify({
             preferred_language: 'en',
-            zone_id: 'zone-kanyakumari',
+            zone_id: zoneId,
             name: email.split('@')[0],
           }),
         });
@@ -61,7 +89,7 @@ export default function Login() {
       } else {
         userCredential = await signInWithEmailAndPassword(auth, email, password);
         const token = await userCredential.user.getIdToken();
-        const profileResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/users/me`, {
+        const profileResponse = await fetch(apiUrl('/api/users/me'), {
           headers: { 'Authorization': `Bearer ${token}` },
         });
 
@@ -166,10 +194,29 @@ export default function Login() {
               />
             </div>
 
+            {isSignUp && (
+              <div className="input-group">
+                <label className="input-label" htmlFor="zone">Coastal Zone</label>
+                <select
+                  className="select"
+                  id="zone"
+                  value={zoneId}
+                  onChange={(event) => setZoneId(event.target.value)}
+                  disabled={Boolean(zonesError)}
+                  required
+                >
+                  {zones.map((zone) => (
+                    <option key={zone.id} value={zone.id}>{zone.name}</option>
+                  ))}
+                </select>
+                {zonesError && <p role="alert" className="text-secondary mt-2">{zonesError}</p>}
+              </div>
+            )}
+
             <button
               type="submit"
               className="btn btn-primary btn-lg w-full mt-3"
-              disabled={loading}
+              disabled={loading || (isSignUp && (!zoneId || Boolean(zonesError)))}
             >
               {loading ? 'Processing...' : (isSignUp ? 'Create Account' : 'Sign In')}
             </button>

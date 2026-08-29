@@ -63,10 +63,30 @@ async def get_zone_status(user: dict = Depends(require_admin)):
     try:
         zones = db.collection("zones").stream()
         zone_list = []
+        zone_stats = {}
         for zone in zones:
             data = zone.to_dict()
             data["zone_id"] = zone.id
+            zone_stats[zone.id] = {"sent": 0, "acknowledged": 0}
             zone_list.append(data)
+
+        for delivery in db.collection("deliveries").limit(500).stream():
+            delivery_data = delivery.to_dict()
+            zone_id = delivery_data.get("zone_id")
+            if zone_id not in zone_stats:
+                continue
+            status = delivery_data.get("status")
+            if status in ["sent", "delivered", "acknowledged"]:
+                zone_stats[zone_id]["sent"] += 1
+            if status == "acknowledged":
+                zone_stats[zone_id]["acknowledged"] += 1
+
+        for zone in zone_list:
+            stats = zone_stats[zone["zone_id"]]
+            zone["ack_rate"] = round(
+                (stats["acknowledged"] / max(stats["sent"], 1)) * 100,
+                1,
+            )
 
         return {"zones": zone_list, "count": len(zone_list)}
 

@@ -21,8 +21,12 @@ service cloud.firestore {
     // Users collection
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
-      allow create: if isAuth() && request.auth.uid == userId;
-      allow update: if isOwner(userId) || isAdmin();
+      allow create: if isAuth() && request.auth.uid == userId
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.role == 'fisherman';
+      allow update: if isAdmin() || (isOwner(userId)
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.uid == resource.data.uid);
       allow delete: if isAdmin();
     }
 

@@ -1,4 +1,5 @@
 from fastapi.testclient import TestClient
+from api.advisories import ComposeRequest
 from main import app
 
 def test_health_check():
@@ -22,3 +23,14 @@ def test_get_active_advisories():
 
     assert response.status_code == 200
     assert response.json() == {"advisories": [], "count": 0}
+
+
+def test_compose_request_preserves_the_selected_bulletin_type():
+    request = ComposeRequest(
+        raw_text="High waves expected. Do not venture into sea.",
+        bulletin_type="HIGH_WAVE_ALERT",
+        zone_ids=["zone-kanyakumari"],
+    )
+
+    assert request.bulletin_type == "HIGH_WAVE_ALERT"
+    assert request.zone_ids == ["zone-kanyakumari"]

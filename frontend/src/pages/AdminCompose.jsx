@@ -1,26 +1,40 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import CoastalTicker from '../components/CoastalTicker';
-
-const ZONES = [
-  { id: 'zone-kanyakumari', name: 'Kanyakumari' },
-  { id: 'zone-tuticorin', name: 'Tuticorin' },
-  { id: 'zone-rameswaram', name: 'Rameswaram' },
-  { id: 'zone-thiruvananthapuram', name: 'Thiruvananthapuram' },
-  { id: 'zone-kochi', name: 'Kochi' },
-  { id: 'zone-kozhikode', name: 'Kozhikode' },
-  { id: 'zone-puri', name: 'Puri' },
-  { id: 'zone-paradip', name: 'Paradip' },
-  { id: 'zone-gopalpur', name: 'Gopalpur' },
-  { id: 'zone-visakhapatnam', name: 'Visakhapatnam' },
-];
+import { apiUrl } from '../api';
 
 export default function AdminCompose() {
   const [rawText, setRawText] = useState('');
+  const [bulletinType, setBulletinType] = useState('HIGH_WAVE_ALERT');
+  const [zones, setZones] = useState([]);
+  const [zonesError, setZonesError] = useState('');
   const [selectedZones, setSelectedZones] = useState([]);
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadZones = async () => {
+      try {
+        const { auth } = await import('../firebase');
+        const token = await auth.currentUser?.getIdToken();
+        if (!token) throw new Error('Please sign in as an admin to load zones.');
+        const response = await fetch(apiUrl('/api/admin/zones/status'), {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!response.ok) throw new Error('Live zones could not be loaded.');
+        const data = await response.json();
+        if (active) setZones(data.zones);
+      } catch (error) {
+        if (active) setZonesError(error.message);
+      }
+    };
+
+    loadZones();
+    return () => { active = false; };
+  }, []);
 
   const toggleZone = (id) => {
     setSelectedZones(prev =>
@@ -36,7 +50,7 @@ export default function AdminCompose() {
     try {
       const { auth } = await import('../firebase');
       const token = await auth.currentUser?.getIdToken();
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/advisories/compose`, {
+      const response = await fetch(apiUrl('/api/advisories/compose'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -44,22 +58,23 @@ export default function AdminCompose() {
         },
         body: JSON.stringify({
           raw_text: rawText,
+          bulletin_type: bulletinType,
           zone_ids: selectedZones
         })
       });
 
       const data = await response.json();
 
-      if (data.success) {
-        setResult({
-          success: true,
-          advisory_id: data.advisory_id,
-          severity: data.severity,
-          languages: ['en', 'ta', 'te', 'or'],
-          deliveries: 10, // Mocked in demo for now unless returned
-          pipeline_time: 4.2,
-        });
-      }
+      if (!response.ok || !data.success) throw new Error(data.detail || 'The advisory could not be broadcast.');
+      setResult({
+        success: true,
+        advisory_id: data.advisory_id,
+        severity: data.severity,
+        languages: data.languages,
+        deliveries: data.deliveries_count,
+        pipeline_time: data.pipeline_time_seconds,
+        darkZones: data.dark_zones,
+      });
     } catch (err) {
       console.error(err);
       alert('Failed to broadcast: ' + err.message);
@@ -91,30 +106,50 @@ export default function AdminCompose() {
 
           <div style={{ maxWidth: 700 }}>
             <div className="input-group">
+              <label className="input-label" htmlFor="bulletin-type">Advisory Type</label>
+              <select
+                id="bulletin-type"
+                className="select"
+                value={bulletinType}
+                onChange={(event) => setBulletinType(event.target.value)}
+              >
+                <option value="HIGH_WAVE_ALERT">High wave alert</option>
+                <option value="CYCLONE_WARNING">Cyclone warning</option>
+                <option value="STORM_WARNING">Storm warning</option>
+                <option value="TSUNAMI_WARNING">Tsunami warning</option>
+                <option value="PFZ_ADVISORY">Potential fishing zone advisory</option>
+                <option value="ALL_CLEAR">All clear</option>
+                <option value="GENERAL">General advisory</option>
+              </select>
+            </div>
+
+            <div className="input-group">
               <label className="input-label">Advisory Text</label>
               <textarea
                 className="input"
                 value={rawText}
                 onChange={(e) => setRawText(e.target.value)}
-                placeholder="Enter the advisory text in English. It will be translated into Tamil, Telugu, and Odia with safety-critical terms pulled from the locked glossary..."
+                placeholder="Enter the advisory text in English. It will be translated into supported local languages with safety-critical terms pulled from the locked glossary..."
                 style={{ minHeight: 160 }}
               />
             </div>
 
             <div className="input-group">
               <label className="input-label">Target Zones (select one or more)</label>
+              {zonesError && <p role="alert" className="text-secondary mb-2">{zonesError}</p>}
               <div className="flex gap-2" style={{ flexWrap: 'wrap' }}>
-                {ZONES.map(zone => (
+                {zones.map(zone => (
                   <button
-                    key={zone.id}
-                    onClick={() => toggleZone(zone.id)}
-                    className={`btn ${selectedZones.includes(zone.id) ? 'btn-primary' : 'btn-secondary'}`}
+                    key={zone.zone_id}
+                    onClick={() => toggleZone(zone.zone_id)}
+                    className={`btn ${selectedZones.includes(zone.zone_id) ? 'btn-primary' : 'btn-secondary'}`}
                     style={{ padding: '8px 14px', fontSize: 'var(--text-xs)', fontFamily: 'var(--font-mono)' }}
                   >
                     {zone.name}
                   </button>
                 ))}
               </div>
+              {!zonesError && zones.length === 0 && <p className="text-secondary mt-2">No live zones are available yet.</p>}
             </div>
 
             <button
@@ -131,7 +166,7 @@ export default function AdminCompose() {
                 <p className="mono" style={{ fontSize: 'var(--text-sm)', color: 'var(--tc-tide-cyan)' }}>
                   PIPELINE PROCESSING...
                 </p>
-                {['Ingesting', 'Classifying severity', 'Translating (4 languages)', 'Generating voice audio', 'Dispatching deliveries', 'Verifying...'].map((stage, i) => (
+                {['Ingesting', 'Classifying severity', 'Translating', 'Generating voice audio', 'Dispatching deliveries', 'Verifying...'].map((stage, i) => (
                   <div key={i} className="flex items-center gap-2 mt-2">
                     <span className="ticker-dot" />
                     <span className="mono" style={{ fontSize: 'var(--text-xs)' }}>{stage}</span>
@@ -172,6 +207,10 @@ export default function AdminCompose() {
                   <div>
                     <div className="mono" style={{ fontSize: 'var(--text-xs)', color: 'var(--tc-text-tertiary)' }}>DELIVERIES</div>
                     <div className="mono" style={{ fontSize: 'var(--text-sm)' }}>{result.deliveries}</div>
+                  </div>
+                  <div>
+                    <div className="mono" style={{ fontSize: 'var(--text-xs)', color: 'var(--tc-text-tertiary)' }}>DARK ZONES</div>
+                    <div className="mono" style={{ fontSize: 'var(--text-sm)' }}>{result.darkZones?.join(', ') || 'None'}</div>
                   </div>
                 </div>
               </div>

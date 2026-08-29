@@ -2,62 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import CoastalTicker from '../components/CoastalTicker';
-
-const DEMO_ADVISORIES = [
-  {
-    id: 'ADV-2026-001',
-    severity: 'CRITICAL',
-    source: 'IMD',
-    bulletin_type: 'CYCLONE_WARNING',
-    zone: 'Puri, Paradip, Gopalpur',
-    title: 'Cyclone DANA — Return to Shore Immediately',
-    summary: 'Cyclone DANA expected to cross north Odisha coast with wind speed 100-110 kmph. Storm surge of 1-2 metres. All fishing operations must cease.',
-    translations: {
-      en: 'Cyclone DANA expected to cross north Odisha coast. Return to shore immediately.',
-      ta: 'புயல் DANA வடக்கு ஒடிசா கடற்கரையை கடக்கும் என எதிர்பார்க்கப்படுகிறது. உடனடியாக கரைக்கு திரும்புங்கள்.',
-      te: 'తుఫాను DANA ఉత్తర ఒడిశా తీరాన్ని దాటనున్నది. వెంటనే తీరానికి తిరిగి రండి.',
-    },
-    time: '6:00 AM',
-    acknowledged: false,
-  },
-  {
-    id: 'ADV-2026-002',
-    severity: 'HIGH',
-    source: 'INCOIS',
-    bulletin_type: 'HIGH_WAVE_ALERT',
-    zone: 'Kanyakumari, Tuticorin, Rameswaram',
-    title: 'High Wave Alert — Tamil Nadu Coast',
-    summary: 'Waves of 2.5 to 3.5 metres expected. Fishermen advised not to venture into sea.',
-    translations: {
-      en: 'High waves of 2.5-3.5m expected along Tamil Nadu coast. Do not venture into the sea.',
-      ta: 'தமிழ்நாடு கடற்கரையில் 2.5-3.5 மீட்டர் உயர் அலைகள் எதிர்பார்க்கப்படுகின்றன. கடலுக்கு செல்ல வேண்டாம்.',
-    },
-    time: '5:30 AM',
-    acknowledged: false,
-  },
-  {
-    id: 'ADV-2026-003',
-    severity: 'MEDIUM',
-    source: 'INCOIS',
-    bulletin_type: 'PFZ_ADVISORY',
-    zone: 'Visakhapatnam',
-    title: 'Potential Fishing Zone — Visakhapatnam',
-    summary: 'Good fish aggregation identified off Visakhapatnam coast. Moderate sea conditions.',
-    time: '4:00 AM',
-    acknowledged: true,
-  },
-  {
-    id: 'ADV-2026-004',
-    severity: 'INFORMATIONAL',
-    source: 'IMD',
-    bulletin_type: 'ALL_CLEAR',
-    zone: 'Thiruvananthapuram, Kochi, Kozhikode',
-    title: 'All Clear — Kerala Coast',
-    summary: 'Sea conditions returning to normal. Fishermen may resume normal activities.',
-    time: '3:00 AM',
-    acknowledged: true,
-  },
-];
+import { apiUrl } from '../api';
 
 const SEVERITY_CONFIG = {
   CRITICAL: { badge: 'badge-critical', card: 'severity-critical', icon: '🔴', label: 'CRITICAL' },
@@ -69,7 +14,9 @@ const SEVERITY_CONFIG = {
 export default function FishermanHome() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [language, setLanguage] = useState('en');
-  const [advisories, setAdvisories] = useState(DEMO_ADVISORIES);
+  const [advisories, setAdvisories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -84,12 +31,12 @@ export default function FishermanHome() {
         const token = auth.currentUser ? await auth.currentUser.getIdToken() : '';
         if (!token) return;
 
-        const profileResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/users/me`, {
+        const profileResponse = await fetch(apiUrl('/api/users/me'), {
           headers: { 'Authorization': `Bearer ${token}` },
         });
         const profile = profileResponse.ok ? await profileResponse.json() : null;
         const zoneQuery = profile?.zone_id ? `?zone_id=${encodeURIComponent(profile.zone_id)}` : '';
-        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/advisories/active${zoneQuery}`, {
+        const res = await fetch(apiUrl(`/api/advisories/active${zoneQuery}`), {
           headers: token ? { 'Authorization': `Bearer ${token}` } : {}
         });
         if (res.ok) {
@@ -112,12 +59,15 @@ export default function FishermanHome() {
             acknowledged: false, // In real app, query if user acknowledged
             audio_urls: a.audio_urls || {}
           }));
-          if (mapped.length > 0) {
-             setAdvisories(mapped);
-          }
+          setAdvisories(mapped);
+        } else {
+          setLoadError('Live advisories could not be loaded. Please try again shortly.');
         }
       } catch (err) {
         console.error('Failed to fetch live advisories:', err);
+        setLoadError('Live advisories could not be loaded. Check your connection and try again.');
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -135,7 +85,7 @@ export default function FishermanHome() {
       const token = await auth.currentUser?.getIdToken();
       if (!token) throw new Error('Please sign in before acknowledging an advisory.');
 
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/deliveries/ack`, {
+      const response = await fetch(apiUrl('/api/deliveries/ack'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -187,6 +137,11 @@ export default function FishermanHome() {
           </div>
 
           {/* Advisory Cards */}
+          {loading && <p className="text-secondary">Loading live advisories…</p>}
+          {loadError && <p role="alert" className="text-secondary">{loadError}</p>}
+          {!loading && !loadError && advisories.length === 0 && (
+            <p className="text-secondary">No active advisories are currently available for your zone.</p>
+          )}
           <div className="flex flex-col gap-3">
             {advisories.map((adv) => {
               const config = SEVERITY_CONFIG[adv.severity] || SEVERITY_CONFIG.INFORMATIONAL;

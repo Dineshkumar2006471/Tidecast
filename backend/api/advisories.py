@@ -21,9 +21,8 @@ class IngestRequest(BaseModel):
 
 class ComposeRequest(BaseModel):
     raw_text: str
-    severity: str = "HIGH"
+    bulletin_type: str = "GENERAL"
     zone_ids: list[str] = []
-    languages: list[str] = ["en", "ta", "te", "or"]
 
 
 @router.post("/advisories/ingest")
@@ -100,7 +99,7 @@ async def compose_advisory(request: ComposeRequest, user: dict = Depends(require
             raw_advisory={
                 "raw_text": request.raw_text,
                 "source": "ADMIN_MANUAL",
-                "bulletin_type": "MANUAL_OVERRIDE",
+                "bulletin_type": request.bulletin_type,
                 "zone_ids": request.zone_ids,
             }
         )
@@ -109,6 +108,10 @@ async def compose_advisory(request: ComposeRequest, user: dict = Depends(require
             "success": True,
             "advisory_id": result["advisory"]["advisory_id"],
             "severity": result["advisory"].get("severity"),
+            "languages": list(result["advisory"].get("translations", {}).keys()),
+            "deliveries_count": len(result.get("deliveries", [])),
+            "dark_zones": result.get("verification", {}).get("dark_zones", []),
+            "pipeline_time_seconds": result.get("pipeline_elapsed_seconds"),
             "message": "Advisory composed and delivered successfully",
         }
 
