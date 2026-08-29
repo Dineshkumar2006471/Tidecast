@@ -9,7 +9,7 @@
 - [x] Start the backend development server from the isolated local environment.
 - [x] Diagnose and correct local Firebase authentication and role-based login flows.
 - [x] Verify the admin-to-fisherman advisory flow with dedicated Firebase test users.
-- [ ] Deploy Cloud Run, Firestore configuration, and Firebase Hosting after the manual acceptance gate passes.
+- [x] Deploy Cloud Run, Firestore configuration, and Firebase Hosting after the manual acceptance gate passes.
 - [x] Review automated release-gate results and record verification evidence.
 
 ## Review
@@ -32,3 +32,6 @@ Production-readiness verification completed on 2026-08-29:
 - Production UI no longer renders invented zone warnings or fake dashboard, logs, and compose metrics.
 - Firestore rules prevent client-side role self-promotion: new profiles must be `fisherman`, and profile owners cannot modify their role or uid.
 - Ravi/Meena acceptance flow — Firebase authentication, Firestore role promotion, zone seeding, a real high-wave six-agent broadcast, three generated MP3 files, and Ravi's persisted acknowledgment all passed. Ravi receives HTTP 403 from admin endpoints; Meena receives live dashboard data.
+- GitHub Actions CI run for commit `53b6308` passed both backend and frontend test/build jobs.
+- Cloud Run `tidecast-backend` deployed in `asia-south1`; its direct and Firebase Hosting-rewritten `/api/health` endpoints return a healthy status for `tidecast-507006`.
+- Firebase Hosting, Firestore rules, and Firestore indexes deployed successfully. The live site returns HTTP 200 and the public zone endpoint returns 10 seeded zones.
