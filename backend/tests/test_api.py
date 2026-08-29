@@ -25,6 +25,13 @@ def test_get_active_advisories():
     assert response.json() == {"advisories": [], "count": 0}
 
 
+def test_zone_directory_is_available_before_sign_up():
+    response = TestClient(app).get("/api/zones")
+
+    assert response.status_code == 200
+    assert response.json() == {"zones": [], "count": 0}
+
+
 def test_compose_request_preserves_the_selected_bulletin_type():
     request = ComposeRequest(
         raw_text="High waves expected. Do not venture into sea.",

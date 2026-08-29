@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { auth, db } from '../firebase';
+import { auth } from '../firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { collection, getDocs } from 'firebase/firestore';
 import Navbar from '../components/Navbar';
 import { apiUrl } from '../api';
 
@@ -36,12 +35,13 @@ export default function Login() {
 
     const loadZones = async () => {
       try {
-        const snapshot = await getDocs(collection(db, 'zones'));
-        const nextZones = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        const response = await fetch(apiUrl('/api/zones'));
+        if (!response.ok) throw new Error('Coastal zones could not be loaded.');
+        const { zones: nextZones } = await response.json();
         if (!nextZones.length) throw new Error('No coastal zones are configured yet.');
         if (active) {
           setZones(nextZones);
-          setZoneId((currentZone) => currentZone || nextZones[0].id);
+          setZoneId((currentZone) => currentZone || nextZones[0].zone_id);
           setZonesError('');
         }
       } catch (loadError) {
@@ -161,6 +161,8 @@ export default function Login() {
                   className={`btn ${role === 'admin' ? 'btn-primary' : 'btn-secondary'}`}
                   style={{ flex: 1 }}
                   onClick={() => setRole('admin')}
+                  disabled={isSignUp}
+                  title={isSignUp ? 'Create a fisherman account first; admins are provisioned by the project owner.' : undefined}
                 >
                   📋 Admin / Officer
                 </button>
@@ -206,7 +208,9 @@ export default function Login() {
                   required
                 >
                   {zones.map((zone) => (
-                    <option key={zone.id} value={zone.id}>{zone.name}</option>
+                    <option key={zone.zone_id} value={zone.zone_id}>
+                      {zone.name}{zone.state ? ` — ${zone.state}` : ''}
+                    </option>
                   ))}
                 </select>
                 {zonesError && <p role="alert" className="text-secondary mt-2">{zonesError}</p>}
@@ -232,7 +236,12 @@ export default function Login() {
           <p className="text-center mt-4 text-secondary" style={{ fontSize: 'var(--text-sm)' }}>
             {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
             <button
-              onClick={() => { setIsSignUp(!isSignUp); setError(''); }}
+              onClick={() => {
+                const nextIsSignUp = !isSignUp;
+                setIsSignUp(nextIsSignUp);
+                if (nextIsSignUp) setRole('fisherman');
+                setError('');
+              }}
               className="btn btn-ghost"
               style={{ padding: '4px 8px', fontSize: 'var(--text-sm)' }}
             >

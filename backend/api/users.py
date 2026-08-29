@@ -26,6 +26,25 @@ class UpdateProfileRequest(BaseModel):
     fcm_token: str | None = None
 
 
+@router.get("/zones")
+async def list_zones():
+    """Return the public zone directory used during pre-authentication signup."""
+    try:
+        zones = []
+        for zone in db.collection("zones").stream():
+            data = zone.to_dict()
+            zones.append({
+                "zone_id": zone.id,
+                "name": data.get("name", zone.id),
+                "state": data.get("state", ""),
+            })
+        zones.sort(key=lambda zone: (zone["state"], zone["name"]))
+        return {"zones": zones, "count": len(zones)}
+    except Exception as error:
+        logger.error("Zone directory failed: %s", error)
+        raise HTTPException(status_code=500, detail="Zone directory could not be loaded")
+
+
 @router.get("/users/me")
 async def get_me(user: dict = Depends(get_current_user)):
     """Get current user profile."""
