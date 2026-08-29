@@ -13,6 +13,7 @@ dist/
 
 # Python virtual environments and test tooling
 .venv/
+backend/.venv-local/
 venv/
 env/
 ENV/

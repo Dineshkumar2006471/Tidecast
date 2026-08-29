@@ -44,10 +44,11 @@ def test_delivery_uses_simulated_sms_for_offline_user():
     }
 
     delivery = asyncio.run(agent._deliver_to_user(
-        {"uid": "user-001", "phone": "+910000000000", "preferred_language": "en"},
+        {"uid": "user-001", "phone": "+910000000000", "preferred_language": "en", "zone_id": "zone-kanyakumari"},
         advisory,
     ))
 
     assert delivery["channel"] == "sms"
+    assert delivery["zone_id"] == "zone-kanyakumari"
     assert delivery["status"] == "sent"
     assert delivery["delivery_result"]["simulated"] is True

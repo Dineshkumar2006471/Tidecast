@@ -82,22 +82,32 @@ export default function FishermanHome() {
       try {
         const { auth } = await import('../firebase');
         const token = auth.currentUser ? await auth.currentUser.getIdToken() : '';
-        // Note: For demo, if not logged in, we can either pass no token or use a default
-        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/advisories/active`, {
+        if (!token) return;
+
+        const profileResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/users/me`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        const profile = profileResponse.ok ? await profileResponse.json() : null;
+        const zoneQuery = profile?.zone_id ? `?zone_id=${encodeURIComponent(profile.zone_id)}` : '';
+        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/advisories/active${zoneQuery}`, {
           headers: token ? { 'Authorization': `Bearer ${token}` } : {}
         });
         if (res.ok) {
           const data = await res.json();
-          // Map backend format to frontend format
           const mapped = data.advisories.map(a => ({
             id: a.advisory_id || a.id,
             severity: a.severity,
             source: a.source || 'IMD',
             bulletin_type: a.bulletin_type,
             zone: (a.zone_ids || []).join(', '),
-            title: a.translations?.en || a.raw_text?.substring(0, 50) + '...',
-            summary: a.translations?.en || a.raw_text,
-            translations: a.translations || {},
+            title: a.translations?.en?.full || a.raw_text?.substring(0, 50) + '...',
+            summary: a.translations?.en?.full || a.raw_text,
+            translations: Object.fromEntries(
+              Object.entries(a.translations || {}).map(([language, text]) => [
+                language,
+                typeof text === 'string' ? text : text.full,
+              ]),
+            ),
             time: new Date(a.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
             acknowledged: false, // In real app, query if user acknowledged
             audio_urls: a.audio_urls || {}
@@ -119,10 +129,28 @@ export default function FishermanHome() {
     };
   }, []);
 
-  const handleAck = (id) => {
-    setAdvisories(prev =>
-      prev.map(a => a.id === id ? { ...a, acknowledged: true } : a)
-    );
+  const handleAck = async (id) => {
+    try {
+      const { auth } = await import('../firebase');
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) throw new Error('Please sign in before acknowledging an advisory.');
+
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/deliveries/ack`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ advisory_id: id, response: 'safe' }),
+      });
+      if (!response.ok) throw new Error('The acknowledgment could not be saved.');
+
+      setAdvisories(prev =>
+        prev.map(a => a.id === id ? { ...a, acknowledged: true } : a)
+      );
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
   const langLabels = { en: 'EN', ta: 'TA', te: 'TE', or: 'OR' };

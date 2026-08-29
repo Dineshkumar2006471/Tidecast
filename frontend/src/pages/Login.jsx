@@ -4,6 +4,18 @@ import { auth } from '../firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import Navbar from '../components/Navbar';
 
+const describeAuthError = (error) => {
+  const messages = {
+    'auth/email-already-in-use': 'An account already exists for this email. Choose Sign In instead.',
+    'auth/invalid-email': 'Enter a valid email address.',
+    'auth/weak-password': 'Use a password with at least six characters.',
+    'auth/invalid-credential': 'The email or password is incorrect.',
+    'auth/network-request-failed': 'Firebase could not be reached. Check your internet connection and try again.',
+  };
+
+  return messages[error.code] || error.message.replace('Firebase: ', '');
+};
+
 export default function Login() {
   const navigate = useNavigate();
   const [isSignUp, setIsSignUp] = useState(false);
@@ -19,12 +31,16 @@ export default function Login() {
     setLoading(true);
 
     try {
+      if (isSignUp && role === 'admin') {
+        throw new Error('Admin accounts are provisioned by the project owner. Create a fisherman account here, then assign admin access in Firestore for authorized officers.');
+      }
+
       let userCredential;
+      let profile;
       if (isSignUp) {
         userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        // Store role in Firestore via API
         const token = await userCredential.user.getIdToken();
-        await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/users/register`, {
+        const registerResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/users/register`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -36,18 +52,37 @@ export default function Login() {
             name: email.split('@')[0],
           }),
         });
+
+        if (!registerResponse.ok) {
+          throw new Error('Account was created, but the TIDECAST profile could not be saved. Confirm the backend is running and try signing in again.');
+        }
+
+        profile = (await registerResponse.json()).user;
       } else {
         userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const token = await userCredential.user.getIdToken();
+        const profileResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/users/me`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+
+        if (!profileResponse.ok) {
+          throw new Error('Could not load your TIDECAST role. Confirm the backend is running and your Firestore user profile exists.');
+        }
+
+        profile = await profileResponse.json();
       }
 
-      // Redirect based on role
-      if (role === 'admin') {
+      if (profile.role !== role) {
+        throw new Error(`This account is registered as ${profile.role}. Select the matching role before signing in.`);
+      }
+
+      if (profile.role === 'admin') {
         navigate('/admin');
       } else {
         navigate('/app');
       }
     } catch (err) {
-      setError(err.message.replace('Firebase: ', ''));
+      setError(describeAuthError(err));
     } finally {
       setLoading(false);
     }
@@ -139,6 +174,13 @@ export default function Login() {
               {loading ? 'Processing...' : (isSignUp ? 'Create Account' : 'Sign In')}
             </button>
           </form>
+
+          {isSignUp && (
+            <p className="text-secondary mt-3" style={{ fontSize: 'var(--text-xs)' }}>
+              Self-service registration creates a fisherman account. Admin accounts must be assigned
+              by the project owner after verification.
+            </p>
+          )}
 
           <p className="text-center mt-4 text-secondary" style={{ fontSize: 'var(--text-sm)' }}>
             {isSignUp ? 'Already have an account? ' : "Don't have an account? "}

@@ -7,6 +7,8 @@
 - [x] Run verification and initialize Git.
 - [x] Start the frontend development server.
 - [ ] Start the backend development server after local Google Application Default Credentials are configured.
+- [x] Diagnose and correct local Firebase authentication and role-based login flows.
+- [ ] Verify an end-to-end admin-to-fisherman advisory flow before deployment.
 - [ ] Review results and record verification evidence.
 
 ## Review
@@ -18,3 +20,5 @@ Automated verification completed successfully on 2026-08-29:
 - `npm run build` in `frontend/` — passed (Vite reports a non-blocking bundle-size warning).
 - Frontend development server — running at `http://127.0.0.1:5173`.
 - Backend development server — requires local Google Application Default Credentials before Firebase/Google Cloud SDK initialization can complete.
+- Firebase Auth configuration probe — valid API key/provider confirmed (`INVALID_LOGIN_CREDENTIALS` for a fictional account).
+- Auth and acknowledgment integration changes — frontend tests/build and backend tests passed; backend dependency installation is being completed in an isolated local virtual environment.

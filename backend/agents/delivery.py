@@ -175,6 +175,7 @@ class DeliveryOrchestrationAgent(BaseAgent):
         delivery_record = {
             "advisory_id": advisory["advisory_id"],
             "user_id": user.get("uid", "unknown"),
+            "zone_id": user.get("zone_id", "unknown"),
             "channel": channel,
             "status": "pending",
             "sent_at": datetime.now(timezone.utc).isoformat(),

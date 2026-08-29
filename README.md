@@ -56,6 +56,16 @@ The backend uses Application Default Credentials, not a checked-in service-accou
 
 Use Firebase Console **Project settings → Your apps → Web app** to obtain the frontend configuration. Deploy `infra/firestore.rules` and `infra/firestore.indexes.json` with the Firebase CLI once the project is configured.
 
+### Test accounts and roles
+
+Enable **Email/Password** under Firebase Console **Authentication → Sign-in method**. Self-service registration always creates a `fisherman` user; this is intentional so a public user cannot grant themselves administrator access. To provision an officer for a local or demo environment:
+
+1. Create the account through the normal fisherman sign-up flow.
+2. In Firestore, open `users/{uid}` for that account and change `role` from `fisherman` to `admin`.
+3. Sign out and sign back in after selecting **Admin / Officer** on the TIDECAST login page.
+
+An account’s Firestore role is authoritative. Selecting a role in the browser is an intent check and cannot elevate access.
+
 ## Run locally
 
 Install and start the backend in one terminal:
