@@ -4,6 +4,86 @@ TIDECAST is a multi-agent fisheries advisory delivery system. It turns a coastal
 
 > This is a hackathon demonstration. The advisory feed, SMS, and IVR gateways are simulated; Firebase Cloud Messaging, Firestore, Cloud Storage, Gemini, and Cloud Text-to-Speech are integrated through their production SDKs. Do not treat the application as an official or operational maritime-warning service.
 
+## Problem and outcome
+
+Coastal bulletins are only useful when they reach people in time, in a language they understand, and through a channel that works for their connectivity. TIDECAST turns one authoritative bulletin into a targeted, multilingual, voice-ready advisory and records whether fishermen acknowledge it.
+
+## System architecture
+
+```mermaid
+flowchart LR
+  Officer[Officer / admin PWA] -->|Firebase ID token| Hosting[Firebase Hosting]
+  Fisherman[Fisherman PWA] -->|Firebase ID token| Hosting
+  Hosting -->|/api/** rewrite| Run[Cloud Run: FastAPI]
+  Hosting --> Auth[Firebase Authentication]
+  Run --> Auth
+  Run --> Firestore[(Cloud Firestore)]
+  Run --> Vertex[Vertex AI / Gemini]
+  Run --> TTS[Cloud Text-to-Speech]
+  TTS --> Audio[(Cloud Storage: advisory MP3s)]
+  Run --> Delivery[FCM / simulated SMS and IVR]
+  Delivery --> Fisherman
+```
+
+## Six-agent advisory pipeline
+
+```mermaid
+flowchart LR
+  A[1. Ingest] --> B[2. Classify severity]
+  B --> C[3. Localize with safety glossary]
+  C --> D[4. Synthesize voice]
+  D --> E[5. Select and dispatch channel]
+  E --> F[6. Verify delivery and acknowledgments]
+  F --> G[(Firestore audit trail and dashboard metrics)]
+```
+
+## Technology stack
+
+| Layer | Technology | Responsibility |
+| --- | --- | --- |
+| Web application | React, Vite, React Router | Responsive officer and fisherman flows |
+| Authentication | Firebase Authentication | Email/password identity and ID tokens |
+| API | FastAPI, Uvicorn | Role checks, profiles, advisories, acknowledgments |
+| Data | Cloud Firestore | Users, zones, advisories, deliveries, verification data |
+| AI | Vertex AI Gemini | Severity classification and localization |
+| Voice | Cloud Text-to-Speech | English, Tamil, and Telugu MP3 advisories |
+| Media | Cloud Storage for Firebase | Public read-only generated advisory audio |
+| Hosting and runtime | Firebase Hosting, Cloud Run | Same-origin web delivery and API execution |
+| Quality | Pytest, Vitest, GitHub Actions | Backend tests, UI mounting test, production build |
+
+## User flow
+
+```mermaid
+sequenceDiagram
+  participant R as Ravi (fisherman)
+  participant M as Meena (officer)
+  participant W as TIDECAST web app
+  participant A as FastAPI
+  participant F as Firebase / Google Cloud
+
+  R->>W: Create fisherman account and choose coastal zone
+  W->>F: Firebase email/password signup
+  W->>A: Save fisherman profile with Firebase ID token
+  A->>F: Store profile with fisherman role
+  Note over M,F: Project owner promotes an approved officer profile to admin
+  M->>W: Sign in as Admin / Officer
+  W->>A: Load admin role and dashboard
+  M->>A: Broadcast high-wave alert for Kanyakumari
+  A->>F: Run six-agent pipeline and persist delivery records
+  F-->>R: Advisory text and MP3 available in fisherman dashboard
+  R->>A: Acknowledge receipt
+  A->>F: Persist acknowledgment and update dashboard metrics
+```
+
+### Demo script for judges
+
+1. Open the landing page and select **Get Started**.
+2. Create Ravi as a **Fisherman**, select **Kanyakumari**, and sign in. Ravi is taken to `/app`.
+3. Create Meena as a fisherman, then in Firestore change only `users/{Meena UID}.role` to `admin`.
+4. Sign out, choose **Admin / Officer**, and sign in as Meena. She is taken to `/admin`.
+5. Open **Compose Advisory**, choose **High wave alert**, target Kanyakumari, and broadcast: “High waves of 3 metres are expected. Do not venture into the sea.”
+6. Return to Ravi’s dashboard, open the new advisory, play the generated MP3, and acknowledge it. Refresh Meena’s dashboard to show the persisted metric.
+
 ## Project layout
 
 ```text
@@ -108,6 +188,21 @@ The backend tests validate the health and active-advisory API behavior plus dete
 ## Continuous integration
 
 GitHub Actions runs on every push and pull request. It installs backend dependencies and runs pytest, then installs frontend dependencies, runs Vitest, and produces a Vite build. See [the CI workflow](.github/workflows/ci.yml).
+
+## Production deployment
+
+Production serves the React build from Firebase Hosting and rewrites `/api/**` to the `tidecast-backend` Cloud Run service in `asia-south1`. The frontend uses relative API paths in production, avoiding any hard-coded localhost address.
+
+Before first deployment, provision the Firebase Storage default bucket and ensure the Cloud Run runtime service account can access Firestore, Vertex AI, Text-to-Speech, and the advisory-audio bucket. Then run:
+
+```powershell
+gcloud run deploy tidecast-backend --source backend --project tidecast-507006 --region asia-south1 --allow-unauthenticated
+
+cd infra
+firebase deploy --project tidecast-507006 --only firestore:rules,firestore:indexes,hosting
+```
+
+After deployment, verify the Hosting home page, `https://tidecast-507006.web.app/api/health`, both role logins, one advisory broadcast, generated audio, and an acknowledgment before presenting the application.
 
 ## Git and GitHub
 

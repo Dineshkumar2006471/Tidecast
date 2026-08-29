@@ -1,5 +1,15 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+// App imports every route eagerly; prevent the landing-page smoke test from
+// initializing Firebase with absent CI environment variables.
+vi.mock('./firebase', () => ({
+  auth: {},
+  db: {},
+  storage: {},
+  getMessagingInstance: vi.fn(),
+}));
+
 import App from './App';
 
 describe('App', () => {
