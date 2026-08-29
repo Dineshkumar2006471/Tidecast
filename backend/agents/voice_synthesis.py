@@ -64,7 +64,8 @@ class VoiceSynthesisAgent(BaseAgent):
         blob_name = f"audio/{content_hash}.mp3"
         blob = self.bucket.blob(blob_name)
         blob.upload_from_string(audio_content, content_type="audio/mpeg")
-        blob.make_public()
+        # The dedicated audio bucket is readable by the public so advisory
+        # audio works in the signed-in PWA without object ACL mutations.
         return blob.public_url
 
     async def process(self, input_data: dict) -> dict:

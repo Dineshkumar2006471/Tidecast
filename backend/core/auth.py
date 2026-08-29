@@ -1,10 +1,13 @@
 """Firebase Auth middleware for FastAPI — token verification and role extraction."""
+import logging
+
 from fastapi import Request, HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from firebase_admin import auth
 from core.firebase_admin import db
 
 security = HTTPBearer(auto_error=False)
+logger = logging.getLogger("tidecast.auth")
 
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
@@ -16,7 +19,13 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         raise HTTPException(status_code=401, detail="Not authenticated")
 
     try:
-        decoded_token = auth.verify_id_token(credentials.credentials)
+        # Firebase tokens can be issued a fraction of a second ahead of a local
+        # development machine. Keep verification strict while tolerating a small,
+        # documented clock skew for the issued-at timestamp.
+        decoded_token = auth.verify_id_token(
+            credentials.credentials,
+            clock_skew_seconds=60,
+        )
         uid = decoded_token["uid"]
 
         # Fetch user profile from Firestore
@@ -35,11 +44,14 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
                 "onboarded": False,
             }
 
-    except auth.InvalidIdTokenError:
+    except auth.InvalidIdTokenError as error:
+        logger.warning("Invalid Firebase ID token: %s", error)
         raise HTTPException(status_code=401, detail="Invalid authentication token")
-    except auth.ExpiredIdTokenError:
+    except auth.ExpiredIdTokenError as error:
+        logger.warning("Expired Firebase ID token: %s", error)
         raise HTTPException(status_code=401, detail="Token expired")
     except Exception as e:
+        logger.warning("Firebase token verification failed: %s", e)
         raise HTTPException(status_code=401, detail=f"Authentication failed: {str(e)}")
 
 

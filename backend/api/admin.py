@@ -143,7 +143,10 @@ async def seed_demo_data(user: dict = Depends(require_admin)):
                 "name": props["name"],
                 "state": props["state"],
                 "coastal_district": props["coastal_district"],
-                "polygon": feature["geometry"],
+                # Firestore does not support nested arrays, so preserve the
+                # GeoJSON geometry as a string rather than its coordinate tree.
+                "geometry_type": feature["geometry"]["type"],
+                "geometry_json": json.dumps(feature["geometry"]),
                 "is_dark": False,
                 "last_updated": datetime.now(timezone.utc).isoformat(),
             })

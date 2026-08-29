@@ -42,6 +42,8 @@ Create local environment files that are never committed. Backend variables can b
 
 The backend uses Application Default Credentials, not a checked-in service-account key. For local development, authenticate the Google Cloud CLI before starting the API. The pytest suite replaces cloud integrations with test doubles and does not require credentials.
 
+For a new Firebase project, provision its default `PROJECT_ID.firebasestorage.app` bucket in **Firebase Console → Storage** (or the Firebase Storage API) before running the voice pipeline. New default buckets require the Blaze plan; this project keeps only generated advisory MP3s in that bucket.
+
 ### Frontend (`frontend/.env.local`)
 
 | Variable | Required | Purpose |
