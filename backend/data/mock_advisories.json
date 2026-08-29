@@ -1,0 +1,38 @@
+[
+  {
+    "advisory_id": "ADV-2026-001",
+    "source": "IMD",
+    "bulletin_type": "CYCLONE_WARNING",
+    "raw_text": "Cyclone Warning: A deep depression over Bay of Bengal has intensified into Cyclone DANA. Expected to cross north Odisha and West Bengal coasts between Puri and Sagar Island during late night of 24th October to early morning of 25th October with wind speed of 100-110 kmph gusting to 120 kmph. Storm surge of about 1-2 metres expected. All fishing operations should cease immediately. Fishermen are advised not to venture into sea along and off Odisha, West Bengal, and north Andhra Pradesh coasts.",
+    "zone_ids": ["zone-puri", "zone-paradip", "zone-gopalpur"],
+    "issued_at": "2026-08-29T06:00:00Z",
+    "expires_at": "2026-08-31T06:00:00Z"
+  },
+  {
+    "advisory_id": "ADV-2026-002",
+    "source": "INCOIS",
+    "bulletin_type": "HIGH_WAVE_ALERT",
+    "raw_text": "High Wave Alert for Tamil Nadu Coast: Waves of height 2.5 to 3.5 metres are expected along the coast of Kanyakumari, Tuticorin, and Ramanathapuram districts during the next 24 hours due to strong southwesterly winds. Fishermen are advised not to venture into sea along these coasts.",
+    "zone_ids": ["zone-kanyakumari", "zone-tuticorin", "zone-rameswaram"],
+    "issued_at": "2026-08-29T05:30:00Z",
+    "expires_at": "2026-08-30T05:30:00Z"
+  },
+  {
+    "advisory_id": "ADV-2026-003",
+    "source": "INCOIS",
+    "bulletin_type": "PFZ_ADVISORY",
+    "raw_text": "Potential Fishing Zone Advisory: Chlorophyll-rich waters indicating good fish aggregation identified in the waters off Visakhapatnam coast between Lat 16.5N-17.5N and Long 82.0E-83.0E. Sea surface temperature 28-29°C. Moderate sea conditions with wave height of 0.5-1.0 metre. Fishermen may venture into these waters for fishing operations.",
+    "zone_ids": ["zone-visakhapatnam"],
+    "issued_at": "2026-08-29T04:00:00Z",
+    "expires_at": "2026-08-30T04:00:00Z"
+  },
+  {
+    "advisory_id": "ADV-2026-004",
+    "source": "IMD",
+    "bulletin_type": "ALL_CLEAR",
+    "raw_text": "The depression over southwest Bay of Bengal has weakened. Sea conditions are returning to normal along Kerala coast. Fishermen may resume normal fishing activities along and off Kerala coast from Thiruvananthapuram to Kozhikode districts. Wave height expected 0.5-1.0 metre. Winds light to moderate.",
+    "zone_ids": ["zone-thiruvananthapuram", "zone-kochi", "zone-kozhikode"],
+    "issued_at": "2026-08-29T03:00:00Z",
+    "expires_at": "2026-08-30T03:00:00Z"
+  }
+]

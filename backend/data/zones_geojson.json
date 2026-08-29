@@ -1,0 +1,135 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "zone-kanyakumari",
+        "name": "Kanyakumari",
+        "state": "Tamil Nadu",
+        "coastal_district": "Kanyakumari"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[77.2, 8.0], [77.8, 8.0], [77.8, 8.4], [77.2, 8.4], [77.2, 8.0]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "zone-tuticorin",
+        "name": "Tuticorin",
+        "state": "Tamil Nadu",
+        "coastal_district": "Thoothukudi"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[78.0, 8.5], [78.5, 8.5], [78.5, 9.0], [78.0, 9.0], [78.0, 8.5]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "zone-rameswaram",
+        "name": "Rameswaram",
+        "state": "Tamil Nadu",
+        "coastal_district": "Ramanathapuram"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[79.0, 9.1], [79.5, 9.1], [79.5, 9.5], [79.0, 9.5], [79.0, 9.1]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "zone-thiruvananthapuram",
+        "name": "Thiruvananthapuram",
+        "state": "Kerala",
+        "coastal_district": "Thiruvananthapuram"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[76.7, 8.3], [77.2, 8.3], [77.2, 8.8], [76.7, 8.8], [76.7, 8.3]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "zone-kochi",
+        "name": "Kochi",
+        "state": "Kerala",
+        "coastal_district": "Ernakulam"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[76.0, 9.8], [76.5, 9.8], [76.5, 10.2], [76.0, 10.2], [76.0, 9.8]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "zone-kozhikode",
+        "name": "Kozhikode",
+        "state": "Kerala",
+        "coastal_district": "Kozhikode"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[75.5, 11.1], [76.0, 11.1], [76.0, 11.5], [75.5, 11.5], [75.5, 11.1]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "zone-puri",
+        "name": "Puri",
+        "state": "Odisha",
+        "coastal_district": "Puri"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[85.5, 19.6], [86.2, 19.6], [86.2, 20.0], [85.5, 20.0], [85.5, 19.6]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "zone-paradip",
+        "name": "Paradip",
+        "state": "Odisha",
+        "coastal_district": "Jagatsinghpur"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[86.3, 20.0], [86.8, 20.0], [86.8, 20.4], [86.3, 20.4], [86.3, 20.0]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "zone-gopalpur",
+        "name": "Gopalpur",
+        "state": "Odisha",
+        "coastal_district": "Ganjam"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[84.8, 19.1], [85.3, 19.1], [85.3, 19.5], [84.8, 19.5], [84.8, 19.1]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "zone-visakhapatnam",
+        "name": "Visakhapatnam",
+        "state": "Andhra Pradesh",
+        "coastal_district": "Visakhapatnam"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[83.0, 17.4], [83.5, 17.4], [83.5, 17.9], [83.0, 17.9], [83.0, 17.4]]]
+      }
+    }
+  ]
+}

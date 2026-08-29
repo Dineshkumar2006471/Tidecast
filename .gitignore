@@ -1,0 +1,55 @@
+# Dependencies and generated build output
+node_modules/
+frontend/dist/
+coverage/
+*.tsbuildinfo
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Python virtual environments and test tooling
+.venv/
+venv/
+env/
+ENV/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Environment files and service credentials
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+service-account*.json
+firebase-service-account*.json
+*-firebase-adminsdk-*.json
+
+# Firebase and Google Cloud local state
+.firebase/
+.firebaserc.local
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+gcloud-debug.log
+
+# Editor and operating-system files
+.vscode/
+.idea/
+.fleet/
+*.code-workspace
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+Desktop.ini
