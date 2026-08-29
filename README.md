@@ -198,9 +198,14 @@ Before first deployment, provision the Firebase Storage default bucket and ensur
 ```powershell
 gcloud run deploy tidecast-backend --source backend --project tidecast-507006 --region asia-south1 --allow-unauthenticated
 
-cd infra
+cd frontend
+npm run build
+
+cd ..\infra
 firebase deploy --project tidecast-507006 --only firestore:rules,firestore:indexes,hosting
 ```
+
+`npm run build` stages the generated static files in `infra/public/`, the Firebase Hosting directory. This generated directory is intentionally excluded from Git.
 
 After deployment, verify the Hosting home page, `https://tidecast-507006.web.app/api/health`, both role logins, one advisory broadcast, generated audio, and an acknowledgment before presenting the application.
 
