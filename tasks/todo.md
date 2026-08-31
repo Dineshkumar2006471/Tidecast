@@ -26,8 +26,8 @@
 
 - [x] Add working English, Tamil, Telugu, and Malayalam advisory voice support.
 - [x] Default advisory playback language from the fisherman's coastal zone.
-- [ ] Run final backend/frontend validation and browser smoke checks.
-- [ ] Push the verified release and deploy Cloud Run, Firestore configuration, and Firebase Hosting.
+- [x] Run final backend/frontend validation and browser smoke checks.
+- [x] Push the verified release and deploy Cloud Run, Firestore configuration, and Firebase Hosting.
 
 ## Final demo user-flow audit
 
@@ -35,7 +35,16 @@
 - [x] Add administrator registration and Firebase password-reset flow for the demo deployment.
 - [x] Persist acknowledgment state per user and refresh the fisherman and administrator views in real time.
 - [x] Implement a 2-minute acknowledgement deadline, automatic dark-zone escalation, and recovery after acknowledgement.
-- [ ] Add focused tests, run the full backend/frontend validation suite, deploy, and verify the live flow.
+- [x] Add focused tests, run the full backend/frontend validation suite, deploy, and verify the live flow.
+
+## Final user-flow review — 2026-08-31
+
+- Backend unit/API suite: `10 passed`.
+- Frontend production build completed; the clean GitHub Actions run for `0cee160` passed backend and frontend jobs.
+- Cloud Run revision exposes the protected deadline evaluator and Firebase Hosting serves the current `index-DDU9fIcd.js` build.
+- Live `/api/health` is healthy and `/api/zones` returns 10 zones.
+- A temporary production smoke-test admin and fisherman account completed registration, a Firebase password-reset request, an acknowledgement, and an admin delivery-log read; all temporary Auth and Firestore records were removed afterward.
+- Cloud Scheduler job `tidecast-deadline-evaluator` runs every minute. A live expired Visakhapatnam delivery was marked dark with the two-minute reason.
 
 Automated verification completed successfully on 2026-08-29:
 
