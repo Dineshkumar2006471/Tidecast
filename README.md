@@ -1,4 +1,21 @@
-# TIDECAST
+<p align="center">
+  <img src="frontend/public/tidecast-logo.png" alt="TIDECAST logo" width="170" />
+</p>
+
+<h1 align="center">TIDECAST</h1>
+
+<p align="center">
+  <strong>An agentic coastal-safety network for timely, multilingual fisherman advisories.</strong>
+</p>
+
+<p align="center">
+  <a href="https://github.com/Dineshkumar2006471/Tidecast/actions"><img src="https://github.com/Dineshkumar2006471/Tidecast/actions/workflows/ci.yml/badge.svg" alt="CI status" /></a>
+  <img src="https://img.shields.io/badge/AI-Gemini%202.5%20Flash-4285F4" alt="Gemini 2.5 Flash" />
+  <img src="https://img.shields.io/badge/Voice-English%20%7C%20Tamil%20%7C%20Telugu%20%7C%20Malayalam-00897B" alt="Four language voice alerts" />
+  <img src="https://img.shields.io/badge/Deployment-Firebase%20Hosting%20%2B%20Cloud%20Run-FFCA28" alt="Firebase Hosting and Cloud Run" />
+</p>
+
+---
 
 TIDECAST is a multi-agent fisheries advisory delivery system. It turns a coastal safety bulletin into a classified, glossary-safe, multilingual, voice-ready advisory and selects a delivery channel based on each fisherman's recent connectivity. The dashboard surfaces delivery reach and zones that have not acknowledged an advisory.
 
@@ -46,7 +63,7 @@ flowchart LR
 | API | FastAPI, Uvicorn | Role checks, profiles, advisories, acknowledgments |
 | Data | Cloud Firestore | Users, zones, advisories, deliveries, verification data |
 | AI | Vertex AI Gemini | Severity classification and localization |
-| Voice | Cloud Text-to-Speech | English, Tamil, and Telugu MP3 advisories |
+| Voice | Cloud Text-to-Speech | English, Tamil, Telugu, and Malayalam MP3 advisories |
 | Media | Cloud Storage for Firebase | Public read-only generated advisory audio |
 | Hosting and runtime | Firebase Hosting, Cloud Run | Same-origin web delivery and API execution |
 | Quality | Pytest, Vitest, GitHub Actions | Backend tests, UI mounting test, production build |

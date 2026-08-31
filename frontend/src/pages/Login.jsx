@@ -17,6 +17,8 @@ const describeAuthError = (error) => {
   return messages[error.code] || error.message.replace('Firebase: ', '');
 };
 
+const allowLocalAdminSignup = import.meta.env.VITE_ALLOW_LOCAL_ADMIN_SIGNUP === 'true';
+
 export default function Login() {
   const navigate = useNavigate();
   const [isSignUp, setIsSignUp] = useState(false);
@@ -59,7 +61,7 @@ export default function Login() {
     setLoading(true);
 
     try {
-      if (isSignUp && role === 'admin') {
+      if (isSignUp && role === 'admin' && !allowLocalAdminSignup) {
         throw new Error('Admin accounts are provisioned by the project owner. Create a fisherman account here, then assign admin access in Firestore for authorized officers.');
       }
 
@@ -78,6 +80,7 @@ export default function Login() {
             preferred_language: 'en',
             zone_id: zoneId,
             name: email.split('@')[0],
+            role,
           }),
         });
 
@@ -161,8 +164,8 @@ export default function Login() {
                   className={`btn ${role === 'admin' ? 'btn-primary' : 'btn-secondary'}`}
                   style={{ flex: 1 }}
                   onClick={() => setRole('admin')}
-                  disabled={isSignUp}
-                  title={isSignUp ? 'Create a fisherman account first; admins are provisioned by the project owner.' : undefined}
+                  disabled={isSignUp && !allowLocalAdminSignup}
+                  title={isSignUp && !allowLocalAdminSignup ? 'Create a fisherman account first; admins are provisioned by the project owner.' : undefined}
                 >
                   📋 Admin / Officer
                 </button>
@@ -226,7 +229,7 @@ export default function Login() {
             </button>
           </form>
 
-          {isSignUp && (
+          {isSignUp && !allowLocalAdminSignup && (
             <p className="text-secondary mt-3" style={{ fontSize: 'var(--text-xs)' }}>
               Self-service registration creates a fisherman account. Admin accounts must be assigned
               by the project owner after verification.

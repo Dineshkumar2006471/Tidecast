@@ -12,6 +12,9 @@ class Settings:
     FIREBASE_STORAGE_BUCKET: str = os.getenv("FIREBASE_STORAGE_BUCKET", "tidecast-507006.firebasestorage.app")
     GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
     PORT: int = int(os.getenv("PORT", "8000"))
+    # Local demo convenience only. This remains false unless explicitly enabled
+    # in the ignored local environment file.
+    ALLOW_LOCAL_ADMIN_SIGNUP: bool = os.getenv("ALLOW_LOCAL_ADMIN_SIGNUP", "false").lower() == "true"
 
     # Safety glossary path
     SAFETY_GLOSSARY_PATH: str = os.path.join(
@@ -29,13 +32,14 @@ class Settings:
     )
 
     # Supported languages
-    SUPPORTED_LANGUAGES: list = ["en", "ta", "te"]
+    SUPPORTED_LANGUAGES: list = ["en", "ta", "te", "ml"]
 
     # TTS voice mapping
     TTS_VOICE_MAP: dict = {
         "en": {"language_code": "en-IN", "name": "en-IN-Wavenet-B"},
         "ta": {"language_code": "ta-IN", "name": "ta-IN-Wavenet-A"},
         "te": {"language_code": "te-IN", "name": "te-IN-Standard-A"},
+        "ml": {"language_code": "ml-IN", "name": "ml-IN-Wavenet-A"},
     }
 
     # Delivery thresholds

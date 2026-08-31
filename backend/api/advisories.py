@@ -65,18 +65,16 @@ async def get_active_advisories(zone_id: str = None, user: dict = Depends(get_cu
     Used by the fisherman PWA to show current advisories.
     """
     try:
-        now = datetime.now(timezone.utc).isoformat()
         query = db.collection("advisories").order_by("created_at", direction="DESCENDING").limit(20)
-
-        if zone_id:
-            query = db.collection("advisories").where(
-                "zone_ids", "array_contains", zone_id
-            ).order_by("created_at", direction="DESCENDING").limit(20)
 
         docs = query.stream()
         advisories = []
         for doc in docs:
             data = doc.to_dict()
+            # Filter within the recent advisory window to avoid requiring a
+            # composite Firestore index for the dashboard's zone view.
+            if zone_id and zone_id not in data.get("zone_ids", []):
+                continue
             data["id"] = doc.id
             advisories.append(data)
 

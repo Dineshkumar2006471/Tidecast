@@ -55,7 +55,7 @@ class LocalizationAgent(BaseAgent):
                 "sms": advisory["raw_text"][:155] + "..." if len(advisory["raw_text"]) > 160 else advisory["raw_text"],
             }
 
-        lang_names = {"ta": "Tamil", "te": "Telugu", "or": "Odia"}
+        lang_names = {"ta": "Tamil", "te": "Telugu", "ml": "Malayalam"}
         lang_name = lang_names.get(lang, lang)
         glossary_terms = self._get_glossary_terms_for_language(lang)
 

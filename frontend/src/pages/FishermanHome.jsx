@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import CoastalTicker from '../components/CoastalTicker';
@@ -11,12 +11,25 @@ const SEVERITY_CONFIG = {
   INFORMATIONAL: { badge: 'badge-clear', card: 'severity-clear', icon: '🟢', label: 'CLEAR' },
 };
 
+const ZONE_LANGUAGE = {
+  'zone-kochi': 'ml',
+  'zone-kozhikode': 'ml',
+  'zone-thiruvananthapuram': 'ml',
+  'zone-visakhapatnam': 'te',
+  'zone-kanyakumari': 'ta',
+  'zone-rameswaram': 'ta',
+  'zone-tuticorin': 'ta',
+};
+
 export default function FishermanHome() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [language, setLanguage] = useState('en');
   const [advisories, setAdvisories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [playingId, setPlayingId] = useState(null);
+  const [playbackError, setPlaybackError] = useState('');
+  const audioPlayer = useRef(null);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -35,6 +48,7 @@ export default function FishermanHome() {
           headers: { 'Authorization': `Bearer ${token}` },
         });
         const profile = profileResponse.ok ? await profileResponse.json() : null;
+        setLanguage(ZONE_LANGUAGE[profile?.zone_id] || 'en');
         const zoneQuery = profile?.zone_id ? `?zone_id=${encodeURIComponent(profile.zone_id)}` : '';
         const res = await fetch(apiUrl(`/api/advisories/active${zoneQuery}`), {
           headers: token ? { 'Authorization': `Bearer ${token}` } : {}
@@ -79,6 +93,57 @@ export default function FishermanHome() {
     };
   }, []);
 
+  useEffect(() => () => {
+    audioPlayer.current?.pause();
+  }, []);
+
+  const stopPlayback = () => {
+    if (audioPlayer.current) {
+      audioPlayer.current.pause();
+      audioPlayer.current = null;
+    }
+    setPlayingId(null);
+  };
+
+  const handlePlay = (advisory) => {
+    setPlaybackError('');
+    if (playingId === advisory.id) {
+      stopPlayback();
+      return;
+    }
+
+    const audioUrl = advisory.audio_urls?.[language];
+    if (!audioUrl) {
+      setPlaybackError(`A ${langLabels[language]} voice alert is not available for this advisory.`);
+      return;
+    }
+
+    stopPlayback();
+    const player = new Audio(audioUrl);
+    audioPlayer.current = player;
+    player.onended = () => {
+      if (audioPlayer.current === player) {
+        audioPlayer.current = null;
+        setPlayingId(null);
+      }
+    };
+    player.onerror = () => {
+      if (audioPlayer.current === player) {
+        audioPlayer.current = null;
+        setPlayingId(null);
+        setPlaybackError('The voice alert could not be played. Please try again.');
+      }
+    };
+    setPlayingId(advisory.id);
+    player.play().catch(() => {
+      if (audioPlayer.current === player) {
+        audioPlayer.current = null;
+        setPlayingId(null);
+        setPlaybackError('The voice alert could not be played. Please try again.');
+      }
+    });
+  };
+
   const handleAck = async (id) => {
     try {
       const { auth } = await import('../firebase');
@@ -103,7 +168,7 @@ export default function FishermanHome() {
     }
   };
 
-  const langLabels = { en: 'EN', ta: 'TA', te: 'TE', or: 'OR' };
+  const langLabels = { en: 'EN', ta: 'TA', te: 'TE', ml: 'ML' };
 
   return (
     <>
@@ -126,7 +191,11 @@ export default function FishermanHome() {
               {Object.entries(langLabels).map(([code, label]) => (
                 <button
                   key={code}
-                  onClick={() => setLanguage(code)}
+                  onClick={() => {
+                    stopPlayback();
+                    setPlaybackError('');
+                    setLanguage(code);
+                  }}
                   className={`btn ${language === code ? 'btn-primary' : 'btn-secondary'}`}
                   style={{ padding: '8px 14px', fontSize: 'var(--text-xs)', fontFamily: 'var(--font-mono)' }}
                 >
@@ -139,6 +208,7 @@ export default function FishermanHome() {
           {/* Advisory Cards */}
           {loading && <p className="text-secondary">Loading live advisories…</p>}
           {loadError && <p role="alert" className="text-secondary">{loadError}</p>}
+          {playbackError && <p role="alert" className="text-secondary">{playbackError}</p>}
           {!loading && !loadError && advisories.length === 0 && (
             <p className="text-secondary">No active advisories are currently available for your zone.</p>
           )}
@@ -170,12 +240,16 @@ export default function FishermanHome() {
 
                   {/* Audio Player */}
                   <div className="audio-player" style={{ marginBottom: 'var(--space-3)' }}>
-                    <button className="audio-play-btn" aria-label={`Play advisory in ${langLabels[language]}`}>
-                      ▶
+                    <button
+                      className="audio-play-btn"
+                      onClick={() => handlePlay(adv)}
+                      aria-label={`${playingId === adv.id ? 'Pause' : 'Play'} advisory in ${langLabels[language]}`}
+                    >
+                      {playingId === adv.id ? '❚❚' : '▶'}
                     </button>
                     <div style={{ flex: 1 }}>
                       <div className="mono" style={{ fontSize: 'var(--text-xs)', color: 'var(--tc-text-secondary)' }}>
-                        AUDIO • {langLabels[language]} • 0:24
+                        AUDIO • {langLabels[language]} • {playingId === adv.id ? 'PLAYING' : 'READY'}
                       </div>
                       <div style={{ height: 4, background: 'var(--tc-border)', marginTop: 6, borderRadius: 2 }}>
                         <div style={{ height: 4, width: '0%', background: 'var(--tc-ocean-blue)', borderRadius: 2 }} />

@@ -14,6 +14,21 @@
 
 ## Review
 
+## Local authentication and advisory diagnostic
+
+- [x] Check that the local frontend and backend are listening and healthy.
+- [x] Verify the fisherman and administrator login screens in a browser.
+- [x] Enable local-only administrator signup without changing production behavior.
+- [x] Remove the local demo's dependency on the missing Firestore advisory query index.
+- [x] Verify the repaired local user flow and record the result.
+
+## Four-language release
+
+- [x] Add working English, Tamil, Telugu, and Malayalam advisory voice support.
+- [x] Default advisory playback language from the fisherman's coastal zone.
+- [ ] Run final backend/frontend validation and browser smoke checks.
+- [ ] Push the verified release and deploy Cloud Run, Firestore configuration, and Firebase Hosting.
+
 Automated verification completed successfully on 2026-08-29:
 
 - `pytest -q` in `backend/` — 5 passed.
@@ -35,3 +50,12 @@ Production-readiness verification completed on 2026-08-29:
 - GitHub Actions CI run for commit `53b6308` passed both backend and frontend test/build jobs.
 - Cloud Run `tidecast-backend` deployed in `asia-south1`; its direct and Firebase Hosting-rewritten `/api/health` endpoints return a healthy status for `tidecast-507006`.
 - Firebase Hosting, Firestore rules, and Firestore indexes deployed successfully. The live site returns HTTP 200 and the public zone endpoint returns 10 seeded zones.
+
+Local demo verification on 2026-08-29 (not deployed):
+
+- Frontend is listening on `http://127.0.0.1:5173`; FastAPI is healthy on `http://127.0.0.1:8000`.
+- Local signup displays all 10 zones and enables both Fisherman and Admin / Officer roles. This behavior is restricted to ignored local environment settings.
+- A local fisherman registration received 3 Kanyakumari advisories; a local administrator registration reached the dashboard successfully.
+- An officer-composed Kochi high-wave advisory completed the six-agent pipeline in 58.44 seconds, with three localized audio files and one stored delivery record.
+- Fisherman advisory playback now uses the generated English, Tamil, and Telugu MP3 URLs; unsupported language controls are hidden rather than presenting a nonfunctional player.
+- The local Kochi demo advisory now includes English, Tamil, Telugu, and Malayalam translations with four verified MP3 files.

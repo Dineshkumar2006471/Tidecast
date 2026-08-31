@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from core.auth import get_current_user
+from core.config import settings
 from core.firebase_admin import db
 
 logger = logging.getLogger("tidecast.api.users")
@@ -17,6 +18,7 @@ class RegisterRequest(BaseModel):
     name: str = ""
     phone: str = ""
     boat_id: str = ""
+    role: str = "fisherman"
 
 
 class UpdateProfileRequest(BaseModel):
@@ -55,6 +57,8 @@ async def get_me(user: dict = Depends(get_current_user)):
 async def register_user(request: RegisterRequest, user: dict = Depends(get_current_user)):
     """Complete user registration / onboarding."""
     try:
+        requested_role = request.role.strip().lower()
+        role = "admin" if settings.ALLOW_LOCAL_ADMIN_SIGNUP and requested_role == "admin" else "fisherman"
         user_data = {
             "uid": user["uid"],
             "email": user.get("email"),
@@ -63,7 +67,7 @@ async def register_user(request: RegisterRequest, user: dict = Depends(get_curre
             "preferred_language": request.preferred_language,
             "zone_id": request.zone_id,
             "boat_id": request.boat_id,
-            "role": "fisherman",
+            "role": role,
             "onboarded": True,
             "last_seen_online": datetime.now(timezone.utc).isoformat(),
             "created_at": datetime.now(timezone.utc).isoformat(),
