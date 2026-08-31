@@ -283,6 +283,11 @@ export default function Login() {
               by the project owner after verification.
             </p>
           )}
+          {isSignUp && allowAdminSignup && (
+            <p className="text-secondary mt-3" style={{ fontSize: 'var(--text-xs)' }}>
+              Demo mode: Fisherman and Admin / Officer registration are enabled.
+            </p>
+          )}
 
           <p className="text-center mt-4 text-secondary" style={{ fontSize: 'var(--text-sm)' }}>
             {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
