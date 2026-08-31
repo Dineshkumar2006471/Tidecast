@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { auth } from '../firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import Navbar from '../components/Navbar';
 import { apiUrl } from '../api';
 
@@ -17,7 +17,9 @@ const describeAuthError = (error) => {
   return messages[error.code] || error.message.replace('Firebase: ', '');
 };
 
-const allowLocalAdminSignup = import.meta.env.VITE_ALLOW_LOCAL_ADMIN_SIGNUP === 'true';
+const allowAdminSignup =
+  import.meta.env.VITE_ALLOW_ADMIN_SIGNUP === 'true' ||
+  import.meta.env.VITE_ALLOW_LOCAL_ADMIN_SIGNUP === 'true';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -29,6 +31,7 @@ export default function Login() {
   const [zoneId, setZoneId] = useState('');
   const [zonesError, setZonesError] = useState('');
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -58,11 +61,12 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setNotice('');
     setLoading(true);
 
     try {
-      if (isSignUp && role === 'admin' && !allowLocalAdminSignup) {
-        throw new Error('Admin accounts are provisioned by the project owner. Create a fisherman account here, then assign admin access in Firestore for authorized officers.');
+      if (isSignUp && role === 'admin' && !allowAdminSignup) {
+        throw new Error('Admin signup is not enabled for this environment.');
       }
 
       let userCredential;
@@ -119,6 +123,27 @@ export default function Login() {
     }
   };
 
+  const handlePasswordReset = async () => {
+    setError('');
+    setNotice('');
+    if (!email.trim()) {
+      setError('Enter your email address first, then choose Forgot password.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Firebase's hosted reset handler is used deliberately: it avoids a
+      // fragile redirect-domain dependency between localhost and Hosting.
+      await sendPasswordResetEmail(auth, email.trim());
+      setNotice('Password-reset email sent. Check your inbox and then sign in with your new password.');
+    } catch (resetError) {
+      setError(describeAuthError(resetError));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <>
       <Navbar variant="landing" />
@@ -146,6 +171,18 @@ export default function Login() {
               {error}
             </div>
           )}
+          {notice && (
+            <div role="status" style={{
+              background: 'var(--tc-safe-teal-bg)',
+              color: 'var(--tc-safe-teal)',
+              padding: 'var(--space-3)',
+              marginBottom: 'var(--space-4)',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--text-sm)',
+            }}>
+              {notice}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit}>
             <div className="input-group">
@@ -164,8 +201,8 @@ export default function Login() {
                   className={`btn ${role === 'admin' ? 'btn-primary' : 'btn-secondary'}`}
                   style={{ flex: 1 }}
                   onClick={() => setRole('admin')}
-                  disabled={isSignUp && !allowLocalAdminSignup}
-                  title={isSignUp && !allowLocalAdminSignup ? 'Create a fisherman account first; admins are provisioned by the project owner.' : undefined}
+                  disabled={isSignUp && !allowAdminSignup}
+                  title={isSignUp && !allowAdminSignup ? 'Admin signup is not enabled for this environment.' : undefined}
                 >
                   📋 Admin / Officer
                 </button>
@@ -227,9 +264,20 @@ export default function Login() {
             >
               {loading ? 'Processing...' : (isSignUp ? 'Create Account' : 'Sign In')}
             </button>
+            {!isSignUp && (
+              <button
+                type="button"
+                onClick={handlePasswordReset}
+                className="btn btn-ghost w-full mt-2"
+                style={{ fontSize: 'var(--text-sm)' }}
+                disabled={loading}
+              >
+                Forgot password?
+              </button>
+            )}
           </form>
 
-          {isSignUp && !allowLocalAdminSignup && (
+          {isSignUp && !allowAdminSignup && (
             <p className="text-secondary mt-3" style={{ fontSize: 'var(--text-xs)' }}>
               Self-service registration creates a fisherman account. Admin accounts must be assigned
               by the project owner after verification.
@@ -242,8 +290,9 @@ export default function Login() {
               onClick={() => {
                 const nextIsSignUp = !isSignUp;
                 setIsSignUp(nextIsSignUp);
-                if (nextIsSignUp) setRole('fisherman');
+                if (nextIsSignUp && !allowAdminSignup) setRole('fisherman');
                 setError('');
+                setNotice('');
               }}
               className="btn btn-ghost"
               style={{ padding: '4px 8px', fontSize: 'var(--text-sm)' }}

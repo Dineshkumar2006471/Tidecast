@@ -12,8 +12,11 @@ class Settings:
     FIREBASE_STORAGE_BUCKET: str = os.getenv("FIREBASE_STORAGE_BUCKET", "tidecast-507006.firebasestorage.app")
     GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
     PORT: int = int(os.getenv("PORT", "8000"))
-    # Local demo convenience only. This remains false unless explicitly enabled
-    # in the ignored local environment file.
+    # Demo officer registration is intentionally opt-in. The backend creates the
+    # profile through Firebase Admin, so Firestore rules still prevent a client
+    # from promoting its own role after registration.
+    ALLOW_ADMIN_SIGNUP: bool = os.getenv("ALLOW_ADMIN_SIGNUP", "false").lower() == "true"
+    # Backwards-compatible local setting used by existing developer setups.
     ALLOW_LOCAL_ADMIN_SIGNUP: bool = os.getenv("ALLOW_LOCAL_ADMIN_SIGNUP", "false").lower() == "true"
 
     # Safety glossary path
@@ -44,7 +47,12 @@ class Settings:
 
     # Delivery thresholds
     ONLINE_THRESHOLD_MINUTES: int = 15
-    DARK_ZONE_THRESHOLD_MINUTES: int = 30
+    # Demo deadline: every delivered advisory must be acknowledged within two
+    # minutes. The verifier re-evaluates this on dashboard polling and on ACK.
+    DARK_ZONE_THRESHOLD_MINUTES: int = int(os.getenv("DARK_ZONE_THRESHOLD_MINUTES", "2"))
+    # Required by the Cloud Scheduler-only deadline evaluator endpoint. It is
+    # injected at deploy time and never committed to source control.
+    DEADLINE_EVALUATOR_TOKEN: str = os.getenv("DEADLINE_EVALUATOR_TOKEN", "")
 
 
 settings = Settings()

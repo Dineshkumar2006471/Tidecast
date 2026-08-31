@@ -179,6 +179,9 @@ class DeliveryOrchestrationAgent(BaseAgent):
             "channel": channel,
             "status": "pending",
             "sent_at": datetime.now(timezone.utc).isoformat(),
+            "ack_deadline_at": (
+                datetime.now(timezone.utc) + timedelta(minutes=settings.DARK_ZONE_THRESHOLD_MINUTES)
+            ).isoformat(),
             "ack_at": None,
         }
 

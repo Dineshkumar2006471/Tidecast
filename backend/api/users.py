@@ -58,7 +58,8 @@ async def register_user(request: RegisterRequest, user: dict = Depends(get_curre
     """Complete user registration / onboarding."""
     try:
         requested_role = request.role.strip().lower()
-        role = "admin" if settings.ALLOW_LOCAL_ADMIN_SIGNUP and requested_role == "admin" else "fisherman"
+        admin_signup_enabled = settings.ALLOW_ADMIN_SIGNUP or settings.ALLOW_LOCAL_ADMIN_SIGNUP
+        role = "admin" if admin_signup_enabled and requested_role == "admin" else "fisherman"
         user_data = {
             "uid": user["uid"],
             "email": user.get("email"),

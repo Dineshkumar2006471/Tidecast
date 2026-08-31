@@ -29,6 +29,14 @@
 - [ ] Run final backend/frontend validation and browser smoke checks.
 - [ ] Push the verified release and deploy Cloud Run, Firestore configuration, and Firebase Hosting.
 
+## Final demo user-flow audit
+
+- [x] Audit authentication, profile role, advisory delivery, acknowledgment, and admin dashboard data paths.
+- [x] Add administrator registration and Firebase password-reset flow for the demo deployment.
+- [x] Persist acknowledgment state per user and refresh the fisherman and administrator views in real time.
+- [x] Implement a 2-minute acknowledgement deadline, automatic dark-zone escalation, and recovery after acknowledgement.
+- [ ] Add focused tests, run the full backend/frontend validation suite, deploy, and verify the live flow.
+
 Automated verification completed successfully on 2026-08-29:
 
 - `pytest -q` in `backend/` — 5 passed.

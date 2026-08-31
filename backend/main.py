@@ -80,11 +80,13 @@ from api.advisories import router as advisories_router
 from api.users import router as users_router
 from api.deliveries import router as deliveries_router
 from api.admin import router as admin_router
+from api.maintenance import router as maintenance_router
 
 app.include_router(advisories_router, prefix="/api", tags=["Advisories"])
 app.include_router(users_router, prefix="/api", tags=["Users"])
 app.include_router(deliveries_router, prefix="/api", tags=["Deliveries"])
 app.include_router(admin_router, prefix="/api", tags=["Admin"])
+app.include_router(maintenance_router, prefix="/api", tags=["Maintenance"])
 
 
 if __name__ == "__main__":

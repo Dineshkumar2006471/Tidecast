@@ -41,3 +41,24 @@ def test_compose_request_preserves_the_selected_bulletin_type():
 
     assert request.bulletin_type == "HIGH_WAVE_ALERT"
     assert request.zone_ids == ["zone-kanyakumari"]
+
+
+def test_deadline_evaluator_route_rejects_public_calls_and_accepts_scheduler(monkeypatch):
+    import api.maintenance as maintenance
+    from core.config import settings
+
+    monkeypatch.setattr(settings, "DEADLINE_EVALUATOR_TOKEN", "scheduler-test-token")
+    monkeypatch.setattr(maintenance, "evaluate_acknowledgment_deadlines", lambda: {
+        "dark_zones": ["zone-kochi"],
+        "dark_zone_count": 1,
+    })
+
+    client = TestClient(app)
+    assert client.post("/api/internal/evaluate-deadlines").status_code == 404
+
+    response = client.post(
+        "/api/internal/evaluate-deadlines",
+        headers={"X-Tidecast-Task-Token": "scheduler-test-token"},
+    )
+    assert response.status_code == 200
+    assert response.json()["dark_zone_count"] == 1

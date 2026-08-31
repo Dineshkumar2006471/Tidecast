@@ -70,7 +70,8 @@ export default function FishermanHome() {
               ]),
             ),
             time: new Date(a.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-            acknowledged: false, // In real app, query if user acknowledged
+            acknowledged: Boolean(a.acknowledged),
+            acknowledgedAt: a.ack_at || null,
             audio_urls: a.audio_urls || {}
           }));
           setAdvisories(mapped);

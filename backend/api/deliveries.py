@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 from core.auth import get_current_user
 from core.firebase_admin import db
+from agents.verification import evaluate_acknowledgment_deadlines
 
 logger = logging.getLogger("tidecast.api.deliveries")
 router = APIRouter()
@@ -31,32 +32,36 @@ async def acknowledge_delivery(request: AckRequest, user: dict = Depends(get_cur
 
         docs = list(query.stream())
 
+        acknowledged_now = False
         if docs:
             # Update existing delivery record
             doc_ref = deliveries_ref.document(docs[0].id)
-            doc_ref.update({
-                "status": "acknowledged",
-                "ack_at": datetime.now(timezone.utc).isoformat(),
-                "ack_response": request.response,
-            })
+            existing = docs[0].to_dict()
+            if existing.get("status") != "acknowledged":
+                doc_ref.update({
+                    "status": "acknowledged",
+                    "ack_at": datetime.now(timezone.utc).isoformat(),
+                    "ack_response": request.response,
+                })
+                acknowledged_now = True
         else:
             # Create a new ack record if no delivery found (e.g., offline-cached advisory)
+            profile = db.collection("users").document(user["uid"]).get().to_dict() or {}
             deliveries_ref.add({
                 "advisory_id": request.advisory_id,
                 "user_id": user["uid"],
+                "zone_id": profile.get("zone_id", "unknown"),
                 "channel": "offline_cache",
                 "status": "acknowledged",
                 "sent_at": None,
                 "ack_at": datetime.now(timezone.utc).isoformat(),
                 "ack_response": request.response,
             })
+            acknowledged_now = True
 
-        # Update verification stats
-        verification_ref = db.collection("verifications").document(request.advisory_id)
-        verification_doc = verification_ref.get()
-        if verification_doc.exists:
-            from google.cloud.firestore_v1 import Increment
-            verification_ref.update({"total_acked": Increment(1)})
+        # Recompute from source-of-truth delivery records. This keeps totals
+        # idempotent and clears an affected dark zone as soon as it recovers.
+        verification = evaluate_acknowledgment_deadlines()
 
         logger.info(
             f"ACK received: user={user['uid']}, advisory={request.advisory_id}, "
@@ -67,6 +72,8 @@ async def acknowledge_delivery(request: AckRequest, user: dict = Depends(get_cur
             "success": True,
             "message": "Acknowledgment recorded",
             "advisory_id": request.advisory_id,
+            "already_acknowledged": not acknowledged_now,
+            "dark_zones": verification["dark_zones"],
         }
 
     except Exception as e:

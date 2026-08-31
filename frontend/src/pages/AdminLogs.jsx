@@ -43,7 +43,11 @@ export default function AdminLogs() {
     };
 
     loadLogs();
-    return () => { active = false; };
+    const refreshTimer = window.setInterval(loadLogs, 10000);
+    return () => {
+      active = false;
+      window.clearInterval(refreshTimer);
+    };
   }, []);
 
   return (

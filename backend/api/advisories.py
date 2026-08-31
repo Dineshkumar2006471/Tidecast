@@ -65,6 +65,15 @@ async def get_active_advisories(zone_id: str = None, user: dict = Depends(get_cu
     Used by the fisherman PWA to show current advisories.
     """
     try:
+        # The advisory payload includes the user's actual acknowledgement state,
+        # so refreshes and new sessions never show an already-acknowledged alert
+        # as pending again.
+        acknowledged_at = {}
+        for delivery in db.collection("deliveries").where("user_id", "==", user["uid"]).stream():
+            delivery_data = delivery.to_dict()
+            if delivery_data.get("status") == "acknowledged":
+                acknowledged_at[delivery_data.get("advisory_id")] = delivery_data.get("ack_at")
+
         query = db.collection("advisories").order_by("created_at", direction="DESCENDING").limit(20)
 
         docs = query.stream()
@@ -76,6 +85,8 @@ async def get_active_advisories(zone_id: str = None, user: dict = Depends(get_cu
             if zone_id and zone_id not in data.get("zone_ids", []):
                 continue
             data["id"] = doc.id
+            data["acknowledged"] = data.get("advisory_id", doc.id) in acknowledged_at
+            data["ack_at"] = acknowledged_at.get(data.get("advisory_id", doc.id))
             advisories.append(data)
 
         return {"advisories": advisories, "count": len(advisories)}

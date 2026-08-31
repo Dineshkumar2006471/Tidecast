@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from core.auth import require_admin
 from core.firebase_admin import db
+from agents.verification import evaluate_acknowledgment_deadlines
 
 logger = logging.getLogger("tidecast.api.admin")
 router = APIRouter()
@@ -21,6 +22,10 @@ async def get_dashboard_stats(user: dict = Depends(require_admin)):
     - Recent activity
     """
     try:
+        # This request is polled by the dashboard. It is also the reliable
+        # request-driven trigger for the two-minute dark-zone deadline on Cloud Run.
+        evaluate_acknowledgment_deadlines()
+
         # Count active advisories
         advisories = list(db.collection("advisories").order_by(
             "created_at", direction="DESCENDING"
@@ -61,6 +66,7 @@ async def get_dashboard_stats(user: dict = Depends(require_admin)):
 async def get_zone_status(user: dict = Depends(require_admin)):
     """Get status of all zones including dark zone flags."""
     try:
+        evaluate_acknowledgment_deadlines()
         zones = db.collection("zones").stream()
         zone_list = []
         zone_stats = {}

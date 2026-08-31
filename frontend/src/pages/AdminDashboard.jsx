@@ -58,7 +58,14 @@ export default function AdminDashboard() {
     };
 
     loadDashboard();
-    return () => { active = false; };
+    // Keep acknowledgement counts and deadline-driven dark zones current while
+    // an officer watches the dashboard. Cloud Run calculates the deadline on
+    // this authenticated polling request.
+    const refreshTimer = window.setInterval(loadDashboard, 10000);
+    return () => {
+      active = false;
+      window.clearInterval(refreshTimer);
+    };
   }, []);
 
   return (

@@ -1,111 +1,171 @@
-"""
-Feedback & Verification Agent — closes the delivery loop.
-
-Mirrors the verification-loop pattern from IntelliASHA.
-This is the strongest, most defensible technical claim in the pitch.
-
-- Monitors delivery attempts + acknowledgment events
-- Flags "dark zones" (no ack within X minutes)
-- Escalates unacknowledged zones for dashboard alert
-"""
+"""Feedback & Verification Agent — acknowledgement deadlines and dark zones."""
+from collections import defaultdict
 from datetime import datetime, timezone, timedelta
+
 from agents.base import BaseAgent
 from core.config import settings
 from core.firebase_admin import db
 
 
-class VerificationAgent(BaseAgent):
-    """
-    Verifies delivery and flags zones that have gone dark.
+def _as_utc(value: str | datetime | None) -> datetime | None:
+    """Normalize Firestore ISO timestamps without making deadline checks brittle."""
+    if not value:
+        return None
+    if isinstance(value, datetime):
+        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+    except (TypeError, ValueError):
+        return None
 
-    A "dark zone" is a zone where:
-    - An advisory was sent to fishermen in that zone
-    - No acknowledgment was received within the threshold
-    - This triggers a dashboard alert for the field officer
+
+def deadline_for_delivery(delivery: dict) -> datetime | None:
+    """Return a delivery's explicit deadline, with a safe legacy-data fallback."""
+    explicit_deadline = _as_utc(delivery.get("ack_deadline_at"))
+    if explicit_deadline:
+        return explicit_deadline
+    sent_at = _as_utc(delivery.get("sent_at"))
+    if sent_at:
+        return sent_at + timedelta(minutes=settings.DARK_ZONE_THRESHOLD_MINUTES)
+    return None
+
+
+def evaluate_acknowledgment_deadlines(now: datetime | None = None) -> dict:
+    """Refresh zone state from persisted delivery records.
+
+    Cloud Run is request driven, so this function is called by the live admin
+    dashboard polling endpoint and immediately after a fisherman acknowledges.
+    A zone becomes dark only after its two-minute deadline has passed with an
+    unacknowledged delivery; it recovers automatically once no expired delivery
+    remains in that zone.
     """
+    now = now or datetime.now(timezone.utc)
+    delivery_docs = list(db.collection("deliveries").stream())
+    zone_docs = {zone.id: zone for zone in db.collection("zones").stream()}
+    advisory_stats: dict[str, dict] = defaultdict(lambda: {
+        "total_deliveries": 0,
+        "total_acked": 0,
+        "expired_unacknowledged": 0,
+        "dark_zones": set(),
+    })
+    expired_by_zone: dict[str, list[dict]] = defaultdict(list)
+    delivery_zones: set[str] = set()
+
+    for delivery_doc in delivery_docs:
+        delivery = delivery_doc.to_dict()
+        advisory_id = delivery.get("advisory_id")
+        zone_id = delivery.get("zone_id")
+        if not advisory_id or not zone_id or zone_id == "unknown":
+            continue
+
+        delivery_zones.add(zone_id)
+        stats = advisory_stats[advisory_id]
+        stats["total_deliveries"] += 1
+        if delivery.get("status") == "acknowledged":
+            stats["total_acked"] += 1
+            continue
+
+        deadline = deadline_for_delivery(delivery)
+        if deadline and deadline <= now and delivery.get("status") in {"pending", "sent", "delivered"}:
+            expired_by_zone[zone_id].append({"advisory_id": advisory_id, "deadline": deadline})
+            stats["expired_unacknowledged"] += 1
+            stats["dark_zones"].add(zone_id)
+
+    for zone_id in delivery_zones:
+        zone_doc = zone_docs.get(zone_id)
+        if not zone_doc:
+            continue
+        expired = expired_by_zone.get(zone_id, [])
+        if expired:
+            oldest = min(expired, key=lambda item: item["deadline"])
+            zone_doc.reference.set({
+                "is_dark": True,
+                "dark_since": oldest["deadline"].isoformat(),
+                "dark_advisory_id": oldest["advisory_id"],
+                "dark_reason": f"No acknowledgement within {settings.DARK_ZONE_THRESHOLD_MINUTES} minutes",
+                "pending_ack_count": len(expired),
+                "last_updated": now.isoformat(),
+            }, merge=True)
+        else:
+            # Do not leave a stale dark-zone alert after the fisherman responds.
+            zone_doc.reference.set({
+                "is_dark": False,
+                "dark_since": None,
+                "dark_advisory_id": None,
+                "dark_reason": None,
+                "pending_ack_count": 0,
+                "last_updated": now.isoformat(),
+            }, merge=True)
+
+    for advisory_id, stats in advisory_stats.items():
+        db.collection("verifications").document(advisory_id).set({
+            "advisory_id": advisory_id,
+            "total_deliveries": stats["total_deliveries"],
+            "total_acked": stats["total_acked"],
+            "expired_unacknowledged": stats["expired_unacknowledged"],
+            "dark_zones": sorted(stats["dark_zones"]),
+            "verified_at": now.isoformat(),
+        }, merge=True)
+
+    dark_zones = sorted(expired_by_zone)
+    return {
+        "dark_zones": dark_zones,
+        "dark_zone_count": len(dark_zones),
+        "expired_delivery_count": sum(len(deliveries) for deliveries in expired_by_zone.values()),
+        "evaluated_at": now.isoformat(),
+    }
+
+
+class VerificationAgent(BaseAgent):
+    """Initializes a deadline-aware verification record for a new advisory."""
 
     def __init__(self):
         super().__init__("VerificationAgent")
 
     async def process(self, input_data: dict) -> dict:
-        """
-        Process delivery records and flag dark zones.
-
-        Input: { "advisory": advisory, "deliveries": [ delivery records ] }
-        Output: { "advisory": advisory, "deliveries": deliveries, "dark_zones": [ zone_ids ], "verification_summary": dict }
-        """
         advisory = input_data["advisory"]
         deliveries = input_data.get("deliveries", [])
+        zone_deliveries: dict[str, dict] = {}
+        for delivery in deliveries:
+            zone_id = delivery.get("zone_id", "unknown")
+            stats = zone_deliveries.setdefault(zone_id, {"total": 0, "sent": 0, "acked": 0, "failed": 0})
+            stats["total"] += 1
+            if delivery.get("status") == "acknowledged":
+                stats["acked"] += 1
+            elif delivery.get("status") == "failed":
+                stats["failed"] += 1
+            else:
+                stats["sent"] += 1
 
-        # Group deliveries by zone
-        zone_deliveries = {}
-        for d in deliveries:
-            user_id = d.get("user_id")
-            # Look up user's zone from delivery context
-            zone_id = d.get("zone_id", "unknown")
-            if zone_id not in zone_deliveries:
-                zone_deliveries[zone_id] = {"total": 0, "sent": 0, "acked": 0, "failed": 0}
-
-            zone_deliveries[zone_id]["total"] += 1
-            if d["status"] == "sent":
-                zone_deliveries[zone_id]["sent"] += 1
-            elif d["status"] == "acknowledged":
-                zone_deliveries[zone_id]["acked"] += 1
-            elif d["status"] == "failed":
-                zone_deliveries[zone_id]["failed"] += 1
-
-        # Flag dark zones (zones with 0 acks and at least 1 sent delivery)
-        dark_zones = [
-            zone_id for zone_id, stats in zone_deliveries.items()
-            if stats["sent"] > 0 and stats["acked"] == 0
-        ]
-
-        # Store verification results in Firestore
+        # A delivery is not dark merely because it has just been sent. The
+        # persisted deadline evaluator handles escalation after two minutes.
+        verification_data = {
+            "advisory_id": advisory["advisory_id"],
+            "zone_stats": zone_deliveries,
+            "dark_zones": [],
+            "total_deliveries": len(deliveries),
+            "total_sent": sum(zone["sent"] for zone in zone_deliveries.values()),
+            "total_acked": sum(zone["acked"] for zone in zone_deliveries.values()),
+            "total_failed": sum(zone["failed"] for zone in zone_deliveries.values()),
+            "ack_deadline_minutes": settings.DARK_ZONE_THRESHOLD_MINUTES,
+            "verified_at": datetime.now(timezone.utc).isoformat(),
+        }
         try:
-            verification_ref = db.collection("verifications").document(advisory["advisory_id"])
-            verification_data = {
-                "advisory_id": advisory["advisory_id"],
-                "zone_stats": zone_deliveries,
-                "dark_zones": dark_zones,
-                "total_deliveries": len(deliveries),
-                "total_sent": sum(z["sent"] for z in zone_deliveries.values()),
-                "total_acked": sum(z["acked"] for z in zone_deliveries.values()),
-                "total_failed": sum(z["failed"] for z in zone_deliveries.values()),
-                "verified_at": datetime.now(timezone.utc).isoformat(),
-            }
-            verification_ref.set(verification_data)
-
-            # Update zone documents with dark zone status
-            for zone_id in dark_zones:
-                zone_ref = db.collection("zones").document(zone_id)
-                zone_ref.update({
-                    "is_dark": True,
-                    "dark_since": datetime.now(timezone.utc).isoformat(),
-                    "dark_advisory_id": advisory["advisory_id"],
-                })
-                self.logger.warning(f"⚠ DARK ZONE flagged: {zone_id}")
-
-        except Exception as e:
-            self.logger.error(f"Failed to store verification results: {e}")
+            db.collection("verifications").document(advisory["advisory_id"]).set(verification_data)
+        except Exception as error:
+            self.logger.error("Failed to store verification results: %s", error)
 
         advisory["status"] = "verified"
-
-        verification_summary = {
+        summary = {
             "total_deliveries": len(deliveries),
             "zones_reached": len(zone_deliveries),
-            "dark_zones": dark_zones,
-            "dark_zone_count": len(dark_zones),
+            "dark_zones": [],
+            "dark_zone_count": 0,
+            "ack_deadline_minutes": settings.DARK_ZONE_THRESHOLD_MINUTES,
         }
-
         self.logger.info(
-            f"Verification complete for {advisory['advisory_id']}: "
-            f"{len(deliveries)} deliveries across {len(zone_deliveries)} zones, "
-            f"{len(dark_zones)} dark zones"
+            "Verification initialized for %s: %s deliveries, %s-minute acknowledgement deadline",
+            advisory["advisory_id"], len(deliveries), settings.DARK_ZONE_THRESHOLD_MINUTES,
         )
-
-        return {
-            "advisory": advisory,
-            "deliveries": deliveries,
-            "dark_zones": dark_zones,
-            "verification_summary": verification_summary,
-        }
+        return {"advisory": advisory, "deliveries": deliveries, "dark_zones": [], "verification_summary": summary}

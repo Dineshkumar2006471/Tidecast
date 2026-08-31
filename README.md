@@ -82,24 +82,26 @@ sequenceDiagram
   W->>F: Firebase email/password signup
   W->>A: Save fisherman profile with Firebase ID token
   A->>F: Store profile with fisherman role
-  Note over M,F: Project owner promotes an approved officer profile to admin
-  M->>W: Sign in as Admin / Officer
+  M->>W: Create Admin / Officer account and select coastal zone
+  W->>A: Save verified officer profile with Firebase ID token
+  A->>F: Store officer profile with admin role
   W->>A: Load admin role and dashboard
   M->>A: Broadcast high-wave alert for Kanyakumari
   A->>F: Run six-agent pipeline and persist delivery records
   F-->>R: Advisory text and MP3 available in fisherman dashboard
   R->>A: Acknowledge receipt
-  A->>F: Persist acknowledgment and update dashboard metrics
+  A->>F: Persist acknowledgment and update dashboard metrics in real time
+  Note over A,F: After 2 minutes without acknowledgment, Cloud Scheduler marks the zone DARK
 ```
 
 ### Demo script for judges
 
 1. Open the landing page and select **Get Started**.
 2. Create Ravi as a **Fisherman**, select **Kanyakumari**, and sign in. Ravi is taken to `/app`.
-3. Create Meena as a fisherman, then in Firestore change only `users/{Meena UID}.role` to `admin`.
-4. Sign out, choose **Admin / Officer**, and sign in as Meena. She is taken to `/admin`.
+3. Create Meena as an **Admin / Officer**, select **Kanyakumari**, and sign in. Meena is taken to `/admin`.
 5. Open **Compose Advisory**, choose **High wave alert**, target Kanyakumari, and broadcast: “High waves of 3 metres are expected. Do not venture into the sea.”
-6. Return to Ravi’s dashboard, open the new advisory, play the generated MP3, and acknowledge it. Refresh Meena’s dashboard to show the persisted metric.
+6. Return to Ravi’s dashboard, open the new advisory, play the generated MP3, and acknowledge it. Meena’s dashboard refreshes automatically within 10 seconds.
+7. For the dark-zone demo, compose a second advisory and leave it unacknowledged for two minutes. The scheduler marks Kanyakumari **DARK**; acknowledge it as Ravi to show automatic recovery.
 
 ## Project layout
 
@@ -157,13 +159,9 @@ Use Firebase Console **Project settings → Your apps → Web app** to obtain th
 
 ### Test accounts and roles
 
-Enable **Email/Password** under Firebase Console **Authentication → Sign-in method**. Self-service registration always creates a `fisherman` user; this is intentional so a public user cannot grant themselves administrator access. To provision an officer for a local or demo environment:
+Enable **Email/Password** under Firebase Console **Authentication → Sign-in method**. The demo deployment has both **Fisherman** and **Admin / Officer** registration enabled, and the **Forgot password?** action sends Firebase’s hosted password-reset email.
 
-1. Create the account through the normal fisherman sign-up flow.
-2. In Firestore, open `users/{uid}` for that account and change `role` from `fisherman` to `admin`.
-3. Sign out and sign back in after selecting **Admin / Officer** on the TIDECAST login page.
-
-An account’s Firestore role is authoritative. Selecting a role in the browser is an intent check and cannot elevate access.
+The role selected during registration is persisted by the authenticated FastAPI backend, not by a direct client-side Firestore write. For a public production rollout, set `ALLOW_ADMIN_SIGNUP=false` in Cloud Run and keep officer provisioning behind an approved invitation workflow.
 
 ## Run locally
 
